@@ -5,7 +5,7 @@ object Diag {
     @Volatile var outgoing: String = "هنوز بررسی نشده (سرویس روشن است؟)"
     @Volatile var outgoingAt: Long = 0L
 
-    fun setOutgoing(msg: String) {
+    fun note(msg: String) {
         outgoing = msg
         outgoingAt = System.currentTimeMillis()
     }
