@@ -21,17 +21,17 @@ object OutgoingSync {
 
     /** Pull pending commands and text them out to the buoy. Safe to call on every service tick. */
     fun fetchAndSend(context: Context) {
-        if (!hasSendSmsPermission(context)) { Diag.setOutgoing("دسترسی ارسال پیامک (SMS) به اپ داده نشده"); return }
+        if (!hasSendSmsPermission(context)) { Diag.note("دسترسی ارسال پیامک (SMS) به اپ داده نشده"); return }
 
         val onlineOn = Prefs.onlineEnabled
         val offlineOn = Prefs.offlineEnabled
-        if (!onlineOn && !offlineOn) { Diag.setOutgoing("هر دو حالت آنلاین و آفلاین خاموش است"); return }
+        if (!onlineOn && !offlineOn) { Diag.note("هر دو حالت آنلاین و آفلاین خاموش است"); return }
 
         if (onlineOn) {
             if (!NetworkUtils.isOnline(context)) {
-                Diag.setOutgoing("گوشی به اینترنت وصل نیست")
+                Diag.note("گوشی به اینترنت وصل نیست")
             } else if (Prefs.outgoingMainUrl.isBlank()) {
-                Diag.setOutgoing("آدرس سرور خروجی خالی است (تب بویه ← ذخیره)")
+                Diag.note("آدرس سرور خروجی خالی است (تب بویه ← ذخیره)")
             } else {
                 val arr = NetworkUtils.getOutgoingMain()
                 if (arr != null) {
