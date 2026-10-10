@@ -113,7 +113,7 @@ object NetworkUtils {
     /** Same as the old GET, but records exactly what happened (HTTP code / error) in [Diag] for the Buoy tab. */
     fun getOutgoingMain(): JSONArray? {
         val urlString = Prefs.outgoingMainUrl
-        if (urlString.isBlank()) { Diag.setOutgoing("آدرس سرور خروجی خالی است (تب بویه)"); return null }
+        if (urlString.isBlank()) { Diag.note("آدرس سرور خروجی خالی است (تب بویه)"); return null }
         var conn: HttpURLConnection? = null
         return try {
             conn = (URL(urlString).openConnection() as HttpURLConnection).apply {
@@ -125,20 +125,20 @@ object NetworkUtils {
             val code = conn.responseCode
             if (code !in 200..299) {
                 val err = try { conn.errorStream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }?.take(120) ?: "" } catch (e: Exception) { "" }
-                Diag.setOutgoing("پاسخ سرور: HTTP $code $err")
+                Diag.note("پاسخ سرور: HTTP $code $err")
                 return null
             }
             val text = conn.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }.trim()
             if (text.startsWith("[")) {
                 val arr = JSONArray(text)
-                Diag.setOutgoing("OK — ${arr.length()} فرمان در انتظار")
+                Diag.note("OK — ${arr.length()} فرمان در انتظار")
                 arr
             } else {
-                Diag.setOutgoing("پاسخ نامعتبر از سرور: ${text.take(100)}")
+                Diag.note("پاسخ نامعتبر از سرور: ${text.take(100)}")
                 null
             }
         } catch (e: Exception) {
-            Diag.setOutgoing(("خطای شبکه: " + e.javaClass.simpleName + " " + (e.message ?: "")).take(170))
+            Diag.note(("خطای شبکه: " + e.javaClass.simpleName + " " + (e.message ?: "")).take(170))
             null
         } finally {
             conn?.disconnect()
