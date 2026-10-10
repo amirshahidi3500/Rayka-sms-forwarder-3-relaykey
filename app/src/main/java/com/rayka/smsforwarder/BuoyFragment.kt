@@ -78,7 +78,7 @@ class BuoyFragment : Fragment(R.layout.fragment_buoy) {
 
         view.findViewById<MaterialButton>(R.id.btnCheckOutgoingNow).setOnClickListener {
             val appCtx = requireContext().applicationContext
-            Diag.setOutgoing("در حال بررسی…")
+            Diag.note("در حال بررسی…")
             executor.execute {
                 OutgoingSync.fetchAndSend(appCtx)
                 uiHandler.post { updateDiag(); loadOutgoingHistory() }
