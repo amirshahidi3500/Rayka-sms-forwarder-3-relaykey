@@ -111,15 +111,17 @@ object NetworkUtils {
     }
 
     /** Same as the old GET, but records exactly what happened (HTTP code / error) in [Diag] for the Buoy tab. */
-    fun getOutgoingMain(): JSONArray? {
-        val urlString = Prefs.outgoingMainUrl
-        if (urlString.isBlank()) { Diag.note("آدرس سرور خروجی خالی است (تب بویه)"); return null }
+    fun getOutgoingMain(waitSec: Int = 0): JSONArray? {
+        val base = Prefs.outgoingMainUrl.trim()
+        if (base.isBlank()) { Diag.note("آدرس سرور خروجی خالی است (تب بویه)"); return null }
+        // waitSec > 0 = "long-poll": the server keeps the request open and answers the moment a command appears
+        val urlString = if (waitSec > 0) base + (if (base.contains('?')) "&" else "?") + "wait=" + waitSec else base
         var conn: HttpURLConnection? = null
         return try {
             conn = (URL(urlString).openConnection() as HttpURLConnection).apply {
                 requestMethod = "GET"
-                connectTimeout = DEFAULT_TIMEOUT_MS
-                readTimeout = DEFAULT_TIMEOUT_MS
+                connectTimeout = if (waitSec > 0) 8000 else DEFAULT_TIMEOUT_MS
+                readTimeout = if (waitSec > 0) (waitSec + 12) * 1000 else DEFAULT_TIMEOUT_MS
                 for ((k, v) in secretHeaders()) setRequestProperty(k, v)
             }
             val code = conn.responseCode
