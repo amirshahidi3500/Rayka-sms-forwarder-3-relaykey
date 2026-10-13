@@ -9,6 +9,7 @@ import android.content.Intent
 import android.os.Build
 import android.os.Handler
 import android.os.IBinder
+import android.os.PowerManager
 import android.os.Looper
 import androidx.core.app.NotificationCompat
 import java.util.concurrent.Executors
@@ -49,13 +50,14 @@ class ForwarderService : Service() {
     private val handler = Handler(Looper.getMainLooper())
     private val executor = Executors.newSingleThreadExecutor()
     private var loopRunning = false
+    private var wakeLock: PowerManager.WakeLock? = null
 
     private val tick = object : Runnable {
         override fun run() {
             executor.execute {
                 MessageSync.catchUpMissedSms(applicationContext)
                 MessageSync.flushPending(applicationContext)
-                OutgoingSync.fetchAndSend(applicationContext)
+                OutgoingSync.pollLocal(applicationContext)   // the main server is served by its own instant thread
             }
             handler.postDelayed(this, FAST_TICK_MS)
         }
@@ -66,12 +68,22 @@ class ForwarderService : Service() {
         Prefs.init(this)
         createChannel()
         startForeground(NOTIF_ID, buildNotification())
+        // Keep the CPU awake while the relay runs: otherwise the phone sleeps when the screen is off and
+        // commands / alarms from the server are delayed. (Leave the phone on a charger.)
+        try {
+            val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
+            wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "rayka:forwarder").apply {
+                setReferenceCounted(false)
+                acquire()
+            }
+        } catch (_: Exception) { }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_KICK) {
             executor.execute { MessageSync.flushPending(applicationContext) }
         }
+        OutgoingSync.startPoller(applicationContext)   // idempotent
         if (!loopRunning) {
             loopRunning = true
             executor.execute { MessageSync.catchUpMissedSms(applicationContext) }
@@ -83,6 +95,8 @@ class ForwarderService : Service() {
     override fun onDestroy() {
         loopRunning = false
         handler.removeCallbacks(tick)
+        OutgoingSync.stopPoller()
+        try { wakeLock?.let { if (it.isHeld) it.release() } } catch (_: Exception) { }
         super.onDestroy()
     }
 
