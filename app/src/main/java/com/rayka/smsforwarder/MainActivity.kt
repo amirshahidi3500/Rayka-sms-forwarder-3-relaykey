@@ -31,6 +31,11 @@ class MainActivity : AppCompatActivity() {
         Prefs.init(this)
         setContentView(R.layout.activity_main)
 
+        // The service is not restarted automatically after an app update or if the system killed it:
+        // bring it back whenever the app is opened, and ask (once) to be exempt from battery saving.
+        if (Prefs.serviceEnabled) { try { ForwarderService.start(this) } catch (_: Exception) { } }
+        askBatteryExemptionOnce()
+
         val imgLogo = findViewById<android.widget.ImageView>(R.id.imgLogo)
         imgLogo.startAnimation(AnimationUtils.loadAnimation(this, R.anim.logo_float))
 
@@ -49,6 +54,20 @@ class MainActivity : AppCompatActivity() {
                 else -> "شماره‌ها و ارسال به بویه"
             }
         }.attach()
+    }
+
+    private fun askBatteryExemptionOnce() {
+        try {
+            val sp = getSharedPreferences("rayka_ui", MODE_PRIVATE)
+            if (sp.getBoolean("battery_asked", false)) return
+            val pm = getSystemService(POWER_SERVICE) as android.os.PowerManager
+            if (pm.isIgnoringBatteryOptimizations(packageName)) return
+            sp.edit().putBoolean("battery_asked", true).apply()
+            startActivity(
+                android.content.Intent(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
+                    .setData(android.net.Uri.parse("package:$packageName"))
+            )
+        } catch (_: Exception) { }
     }
 
     override fun onResume() {
